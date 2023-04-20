@@ -28,16 +28,16 @@ def add_rolling(df, _list):
     
     df['SMA_4'] = df.groupby(_list[0:-1])['LBS'].transform(lambda x: x.rolling(4, min_periods=1).mean())
     #df['SMA_4'] = df.groupby(level=_list[0:-1])['LBS'].apply(lambda x: x.rolling(4, min_periods=1).mean())
-    df['SMA_8'] = df.groupby(level=_list[0:-1])['LBS'].apply(lambda x: x.rolling(8, min_periods=1).mean())
-    df['SMA_12'] = df.groupby(level=_list[0:-1])['LBS'].apply(lambda x: x.rolling(12, min_periods=1).mean())
+    df['SMA_8'] = df.groupby(_list[0:-1])['LBS'].transform(lambda x: x.rolling(8, min_periods=1).mean())
+    df['SMA_12'] = df.groupby(_list[0:-1])['LBS'].transform(lambda x: x.rolling(12, min_periods=1).mean())
     
-    df['SMA_4_LY'] = df.groupby(level=_list[0:-1])['LBS_LY'].apply(lambda x: x.rolling(4, min_periods=1).mean())
-    df['SMA_8_LY'] = df.groupby(level=_list[0:-1])['LBS_LY'].apply(lambda x: x.rolling(8, min_periods=1).mean())
-    df['SMA_12_LY'] = df.groupby(level=_list[0:-1])['LBS_LY'].apply(lambda x: x.rolling(12, min_periods=1).mean())
+    df['SMA_4_LY'] = df.groupby(_list[0:-1])['LBS_LY'].transform(lambda x: x.rolling(4, min_periods=1).mean())
+    df['SMA_8_LY'] = df.groupby(_list[0:-1])['LBS_LY'].transform(lambda x: x.rolling(8, min_periods=1).mean())
+    df['SMA_12_LY'] = df.groupby(_list[0:-1])['LBS_LY'].transform(lambda x: x.rolling(12, min_periods=1).mean())
     
-    df['SMA_4_Baseline'] = df.groupby(level=_list[0:-1])['LBS_Baseline'].apply(lambda x: x.rolling(4, min_periods=1).mean())
-    df['SMA_8_Baseline'] = df.groupby(level=_list[0:-1])['LBS_Baseline'].apply(lambda x: x.rolling(8, min_periods=1).mean())
-    df['SMA_12_Baseline'] = df.groupby(level=_list[0:-1])['LBS_Baseline'].apply(lambda x: x.rolling(12, min_periods=1).mean())
+    df['SMA_4_Baseline'] = df.groupby(_list[0:-1])['LBS_Baseline'].transform(lambda x: x.rolling(4, min_periods=1).mean())
+    df['SMA_8_Baseline'] = df.groupby(_list[0:-1])['LBS_Baseline'].transform(lambda x: x.rolling(8, min_periods=1).mean())
+    df['SMA_12_Baseline'] = df.groupby(_list[0:-1])['LBS_Baseline'].transform(lambda x: x.rolling(12, min_periods=1).mean())
     
     df['LBS_Baseline_Lag_1'] = df.groupby(level=_list[0:-1])['LBS_Baseline'].shift(periods = 1)
     df['LBS_LY_Lag_1'] = df.groupby(level=_list[0:-1])['LBS'].shift(periods = 1)
