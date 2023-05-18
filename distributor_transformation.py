@@ -409,13 +409,16 @@ def transform_sysco_ca(df, file_name):
     
     #dict_df.to_csv('sysco_test.csv', index=False)
 
-    df.loc[: , 'sector'] = df['sector'].str.strip()
-    df.loc[: , 'segment'] = df['segment'].str.strip()
-    df.loc[: , 'subsegment'] = df['subsegment'].str.strip()
+    df['sector'] = df['sector'].str.strip().replace('', np.nan)
+    df['segment'] = df['segment'].str.strip().replace('', np.nan)
+    df['subsegment'] = df['subsegment'].str.strip().replace('', np.nan)
 
-    df.loc[df['sector']=='' , 'sector'] = np.nan
-    df.loc[df['segment']=='' , 'segment'] = np.nan
-    df.loc[df['subsegment']=='', 'subsegment'] = np.nan
+    dict_df['sector'] = dict_df['sector'].str.strip().replace('', np.nan)
+    dict_df['segment'] = dict_df['segment'].str.strip().replace('', np.nan)
+    dict_df['subsegment'] = dict_df['subsegment'].str.strip().replace('', np.nan)
+
+    #remove / character
+    df['sector'] = df['sector'].str.replace('/', '')
 
     #remove lower case key columns
     df = df.merge(dict_df, how = 'left', on=['sector','segment','subsegment'])
