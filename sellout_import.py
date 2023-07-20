@@ -91,6 +91,8 @@ def import_pfg():
     print(df.shape[0])
     print(df['Invoice Week'].max())
 
+    df.to_csv(r'C:\Users\newatter\OneDrive - McCain Foods Limited\Data Update\files\pfg_us_sellout.csv')
+
     return df
 
 

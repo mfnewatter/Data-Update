@@ -450,6 +450,80 @@ def transform_sysco_ca(df, file_name):
     return df
 
 
+def transform_gfs_ca(df, file_name):
+    DICTIONARY = set_dictionary()
+    TIME = set_time(DICTIONARY)
+    
+    #create dictionary object from Excel file
+    #adding sheet_name = None makes it a dictionary type
+    _dict = pd.read_excel(DICTIONARY + file_name, sheet_name = None, engine='openpyxl')
+
+    #update category to consolidated category
+    df.loc[~df['category'].fillna('').str.contains('POT'), 'Consolidated Category'] = 'Prepared Foods'
+    df.loc[df['category'].fillna('').str.contains('POT'), 'Consolidated Category'] = 'Potato'
+    
+    #create DataFrame from dictionary object called dict (short for dictionary)
+    dict_df = pd.DataFrame.from_dict(_dict['Segment Mapping v2'])
+
+    #create DataFrame from dictionary object called cat (short for category)
+    cat_df = pd.DataFrame.from_dict(_dict['Province Mapping'])
+    cat_df = cat_df[['Province','Cleaned Province Name','Geographic Region']]
+    
+    #print shape of df (dimensions)
+    print(f'Shape before adding dictionary: {df.shape}', flush = True)
+    
+    #testing total lbs to see if it matches after merge
+    total_lbs = df['LBS'].sum()
+    print(f'Total before dictionary: {total_lbs}', flush = True)
+    
+    dict_df = dict_df.groupby([
+            'sector','segment','subsegment',
+            'COVID Segmentation - L1','COVID Segmentation - L2','COVID Segmentation - (Restaurants)','Restaurant Service Type'
+                              ], dropna = False).size().reset_index().drop(columns={0})
+    
+    #dict_df.to_csv('sysco_test.csv', index=False)
+
+    df['sector'] = df['sector'].str.strip().replace('', np.nan)
+    df['segment'] = df['segment'].str.strip().replace('', np.nan)
+    df['subsegment'] = df['subsegment'].str.strip().replace('', np.nan)
+
+    dict_df['sector'] = dict_df['sector'].str.strip().replace('', np.nan)
+    dict_df['segment'] = dict_df['segment'].str.strip().replace('', np.nan)
+    dict_df['subsegment'] = dict_df['subsegment'].str.strip().replace('', np.nan)
+
+    #remove / character
+    df['sector'] = df['sector'].str.replace('/', '')
+
+    #remove lower case key columns
+    df = df.merge(dict_df, how = 'left', on=['sector','segment','subsegment'])
+    
+    #add Clean Province Name
+    #df = df.merge(cat_df, how = 'left', left_on = ['Province'], right_on = ['Province'])
+    
+    df['City'] = 'NA'
+    df['Region'] = 'NA'
+    
+    df = clean_city(df)
+    
+    df['PeriodEnd'] = pd.to_datetime(df['PeriodEnd'])
+
+     #apply calendar week
+    df = df.merge(TIME[['Week Ending (Sat)', 'Calendar Week Year']], how = 'left', left_on = ['PeriodEnd'], right_on = ['Week Ending (Sat)']).drop(columns = {'Week Ending (Sat)'})
+    
+    #df = df.rename(columns = {'category':'Consolidated Category'}).fillna(0).astype({'Calendar Week Year':'int64'})
+
+    #testing total lbs to see if it matches after merge
+    total_lbs = df['LBS'].sum()
+    print(f'Total after dictionary: {total_lbs}', flush = True)
+
+    #print final shape to see if anything changes (would indicate duplicates in dictionary)
+    print(f'Shape after adding dictionary: {df.shape}', flush = True)
+
+    is_missing_l1(df, ['sector','segment','subsegment'], 'sysco_ca')
+
+    return df
+
+
 def is_missing_l1(df, _list, distributor):
     DICTIONARY = set_dictionary()
 
