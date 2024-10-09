@@ -4,6 +4,7 @@ import os
 from datetime import datetime as dt
 import datetime
 import pyodbc
+import pickle
 
 def import_bek(file_name):
 
@@ -13,7 +14,7 @@ def import_bek(file_name):
         df = df[df['Branch'] != 'Total']
     else:
         df = pd.DataFrame()
-        
+        print(file_name)
         _import = pd.read_excel(file_name, sheet_name=None)
         
         for f in _import:
@@ -38,9 +39,11 @@ def import_bek(file_name):
 
 def all_df(df, backup, file_name):
 
-    backup_df = pd.read_csv(backup + file_name, low_memory = False, thousands = ',', decimal = '.', dtype = {
-                'Calendar Week Year':np.int64,
-                'LBS':np.float64})
+    backup_df = pd.read_csv(backup + file_name, low_memory = False, thousands = ',', decimal = '.') 
+    
+    #, dtype = {
+    #            'Calendar Week Year':np.int64,
+    #            'LBS':np.float64})
 
     print(f'Imported shape...{df.shape}', flush = True)
 
@@ -63,11 +66,15 @@ def all_df(df, backup, file_name):
 def build_pfg_frame(file_name):
     date = file_name[118:128]
     
-    df = pd.read_csv(file_name, low_memory=False, thousands=',', dtype={'Qty':'float64','Weight':'float64'})
-    
+    #df = pd.read_csv(file_name, low_memory=False, thousands=',', dtype={'Qty':'float64','Weight':'float64'})
+    df = pd.read_pickle(file_name)
+
     df['Invoice Week'] = pd.to_datetime(date, format='%Y-%m-%d')
     
-    return(df)
+    columns_to_return = ['Manufacturer','Segment','Invoice Week','Customer Class','Account Type','MFR SKU',
+                         'Qty','Weight','City','State','Brand','Sub-Category','Item Name','Pack','Size','Unit Type','GTIN','Dist SKU']
+
+    return(df[columns_to_return])
 
 
 def import_pfg():
@@ -84,7 +91,7 @@ def import_pfg():
         f = os.path.join(directory, filename)
         # checking if it is a file
 
-        if os.path.isfile(f):
+        if os.path.isfile(f) and filename.endswith('.pkl'):
             if len(f) > 120:
                 df = pd.concat([df, build_pfg_frame(f)])
             
@@ -166,7 +173,7 @@ def import_sysco_ca():
         ,SUM(a1.[SalesLbs]) as LBS
         ,SUM(a1.[SalesCases]) as Cases
         FROM [BI].[Factsellout] as a1
-        JOIN [cur].[account] as a2
+        LEFT JOIN [cur].[account] as a2
             on a1.[OperatorID] = a2.[Id]
         LEFT JOIN [cur].[product2] as a3
             on REPLACE(LTRIM(REPLACE(a1.[ProductId], '0', ' ')), ' ', '0') = a3.[ProductCode]
@@ -267,6 +274,9 @@ def import_all(search_str):
                 print(f)
                 df = pd.read_csv(f, low_memory=False, thousands=',')
                 df.columns = df.columns.str.lower()
+
+                # 11/16/23 - Added fix for category being mispelled
+                df['consolidated category'].replace('Perpared Foods', 'Prepared Foods', inplace=True)
                 all_df = pd.concat([all_df, df])
             
     #print(df.shape[0])

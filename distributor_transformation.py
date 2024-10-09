@@ -3,7 +3,7 @@ import numpy as np
 from datetime import datetime as dt
 
 def set_dictionary():
-    return r'C:\Users\NEWATTER\OneDrive - McCain Foods Limited\Distributor Sell-Out Dictionaries\\'
+    return r'C:\Users\newatter\OneDrive - McCain Foods Limited\Distributor Sell-Out\Data Dictionaries\\'
 
 
 def set_time(DICTIONARY):
@@ -132,7 +132,8 @@ def transform_bek(df, file_name):
     df = df.rename(columns = {
         'Customer City':'City', 
         'Customer State':'State',
-        'Manufacture Prod.Nbr.':'SKU ID'
+        #'Manufacture Prod.Nbr.':'SKU ID'
+        'McCain SKU ID':'SKU ID'
     })
     
     df = df.merge(dict_df, how = 'left', left_on = ['Business Unit-lower','SIC Code-lower','SIC Sub-lower'],
@@ -156,7 +157,7 @@ def transform_bek(df, file_name):
     #print shape of df (dimensions)
     print(f'Shape after adding product segmentation: {df.shape}', flush = True)
     
-    df['Week Starting'] = pd.to_datetime(df['Week of'])
+    df['Week Starting'] = pd.to_datetime(df['Week Beginning Date'])
     
     print(f'Shape before adding time: {df.shape}', flush = True)
     
@@ -167,7 +168,7 @@ def transform_bek(df, file_name):
     
     #exclude certain records
     df = df[~df['Calendar Week Year'].isna()]
-    df = df[df['Branch'] != 'Total']
+    #df = df[df['Branch'] != 'Total']
     df['LBS'] = pd.to_numeric(df['LBS'])
     df['Calendar Week Year'] = df['Calendar Week Year'].astype('int64')
     
@@ -179,7 +180,7 @@ def transform_bek(df, file_name):
     print(f'Shape after adding dictionary: {df.shape}', flush = True)
     
     is_missing_l1(df, ['Business Unit','SIC Code','SIC Sub'], 'bek')
-    is_missing_sku(df, ['Group','Family','SKU ID','Prod Nbr','Product','Product Ext.Description','Pack / Size'], 'bek')
+    is_missing_sku(df, ['SKU ID'], 'bek')
 
     return df
 
@@ -196,7 +197,7 @@ def transform_pfg(df, file_name):
     
     #for testing, keys = sheet names
     #print(_dict.keys())
-    
+    #'Manufacturer','Segment','Invoice Week','Customer Class','Account Type','MFR SKU','Qty','Weight','State', 'State Name'
     #create DataFrame from dictionary object called dict (short for dictionary)
     dict_df = pd.DataFrame.from_dict(_dict['Segment Mapping'])
     sku_df = pd.DataFrame.from_dict(_dict['SKU Mapping'])
@@ -262,10 +263,13 @@ def transform_pfg(df, file_name):
     sku_df.loc[:, 'Mfr SKU'] = sku_df['Mfr SKU'].astype(str)
     df.loc[:, 'MFR SKU'] = df['MFR SKU'].astype(str)
     
-    df = df.merge(sku_df[['Mfr SKU','Consolidated Category','L1 Product Hierarchy','L2 Product Hierarchy','Case Weight Lbs']], how = 'left', left_on = ['MFR SKU'], right_on = ['Mfr SKU']).drop(columns = {'Mfr SKU'})
+    df = df.merge(sku_df[['Mfr SKU','Consolidated Category','L1 Product Hierarchy','L2 Product Hierarchy','Case Weight Lbs']], 
+                  how = 'left', 
+                  left_on = ['MFR SKU'], 
+                  right_on = ['Mfr SKU']).drop(columns = {'Mfr SKU'})
     
     #print(f'Shape after 2nd merge: {df.shape}', flush = True)
-    
+    #
     df = df.astype({'Qty':'float64','Weight':'float64','Case Weight Lbs':'float64'})
     
     #calculate case weight if weight = 0 and qty > 0
@@ -295,6 +299,93 @@ def transform_pfg(df, file_name):
     return df
 
 
+def transform_pfg2(df, file_name):
+    DICTIONARY = set_dictionary()
+    TIME = set_time(DICTIONARY)
+    
+    print(f'Starting dataframe shape: {df.shape}', flush = True)
+    
+    #create dictionary object from Excel file
+    #adding sheet_name = None makes it a dictionary type
+    _dict = pd.read_excel(DICTIONARY + file_name, sheet_name = None, engine='openpyxl')
+    
+    #for testing, keys = sheet names
+    #print(_dict.keys())
+    
+    #create DataFrame from dictionary object called dict (short for dictionary)
+    dict_df = pd.DataFrame.from_dict(_dict['Segment Mapping'])
+    sku_df = pd.DataFrame.from_dict(_dict['SKU Mapping'])
+    
+    man_df = pd.DataFrame.from_dict(_dict['Manufacturer Mapping'])
+        
+    #strip blanks from segment
+    df.loc[:, 'Segment'] = df['Segment'].str.strip()
+    
+    #convert Invoice Week to date
+    df.loc[:, 'Invoice Week'] = pd.to_datetime(df['Invoice Week'])
+    
+    
+    #print shape of df (dimensions)
+    print(f'Shape before adding dictionary: {df.shape}', flush = True)
+    #add lower case for merging
+    
+    dict_df.loc[:, 'customer_class_lower'] = dict_df['Customer Class'].str.lower()
+    dict_df.loc[:, 'segment_lower'] = dict_df['Segment'].str.strip().str.lower()
+    dict_df.loc[:, 'account_type_lower'] = dict_df['Account Type'].str.strip().str.lower()
+    
+    #Type Name	Category Name	COVID Segmentation - L1	COVID Segmentation - L2	COVID Segmentation - (Restaurants)	COVID Segmentation - (Restaurants: Sub-Segment)	Restaurant Service Type
+    
+    dict_df = dict_df.groupby(['customer_class_lower','segment_lower','account_type_lower','COVID Segmentation - L1','COVID Segmentation - L2',
+                               'COVID Segmentation - (Restaurants)','COVID Segmentation - (Restaurants: Sub-Segment)','Restaurant Service Type','Cuisine Type']
+                              , dropna = False).size().reset_index().drop(columns={0})
+    
+    #add lower case key columns for merging (removes case mismatch)
+    
+    df.loc[:, 'customer_class_lower'] = df['Customer Class'].str.lower()
+    df.loc[:, 'segment_lower'] = df['Segment'].str.strip().str.lower()
+    df.loc[:, 'account_type_lower'] = df['Account Type'].str.strip().str.lower()
+    
+    
+    df = df.merge(dict_df, how = 'left', left_on = [
+        'customer_class_lower','segment_lower','account_type_lower'],
+        right_on = ['customer_class_lower','segment_lower','account_type_lower']).drop(columns = {
+            'customer_class_lower','segment_lower','account_type_lower'})
+    
+    
+    #both SKU fields need to be strings in order to match
+    sku_df.loc[:, 'Mfr SKU'] = sku_df['Mfr SKU'].astype(str)
+    df.loc[:, 'MFR SKU'] = df['MFR SKU'].astype(str)
+    
+    df = df.merge(sku_df[['Mfr SKU','Consolidated Category','L1 Product Hierarchy','L2 Product Hierarchy','Case Weight Lbs']], how = 'left', left_on = ['MFR SKU'], right_on = ['Mfr SKU']).drop(columns = {'Mfr SKU'})
+    
+    #print(f'Shape after 2nd merge: {df.shape}', flush = True)
+    
+    df = df.astype({'Qty':'float64','Weight':'float64','Case Weight Lbs':'float64'})
+    
+    #calculate case weight if weight = 0 and qty > 0
+    df.loc[(df['Weight'] == 0) & (df['Qty'] > 0), 'Weight'] = df['Case Weight Lbs'] * df['Qty']
+    
+    #add time
+    
+    df = df.merge(TIME[['Week Starting (Mon)', 'Calendar Week Year']], how = 'left', left_on = ['Invoice Week'], right_on = ['Week Starting (Mon)']).drop(columns={'Week Starting (Mon)'})
+    
+    #rename metric Weight for consistancy
+    df = df.rename(columns={
+        'Weight':'LBS',
+        'MFR SKU':'SKU ID'})
+    
+    df = df[~df['Calendar Week Year'].isna()]
+    
+    #Clean US States
+    df.loc[df['State'] == 'tn', 'State'] = 'TN'
+    df = df.merge(us_states(), how = 'left', on = 'State')
+    df.loc[df['State Name'].isna(), ['State', 'State Name']] = 'None'
+    
+    print(f'Shape after adding dictionary: {df.shape}', flush = True)
+
+    return df
+
+
 def transform_usfoods(df, file_name):
     DICTIONARY = set_dictionary()
     TIME = set_time(DICTIONARY)
@@ -306,8 +397,8 @@ def transform_usfoods(df, file_name):
     #create DataFrame from dictionary object called segments
     segments = pd.DataFrame.from_dict(_dict['Segment Mapping v2'])
     
-    #create DataFrame from dictionary object called products
-    products = pd.DataFrame.from_dict(_dict['SKU Mapping']).rename(columns={'McCain SKU ID':'SKU ID'})
+    #create DataFrame from dictionary object called products)
+    products = pd.DataFrame.from_dict(_dict['SKU Mapping v3'])
     
     regions = pd.DataFrame.from_dict(_dict['Region Mapping'])
     
@@ -333,11 +424,11 @@ def transform_usfoods(df, file_name):
                               'MFG #':'Manufacturer Item Number',
                               'Product':'Product Description'})
     
-    df = df.astype({'Manufacturer Item Number':'int64'}).astype({'Manufacturer Item Number':'str'})
+    #df = df.astype({'Manufacturer GTIN':'int64'}).astype({'Manufacturer GTIN':'str'})
     
     #add lower case key columns for merging (removes case mismatch)
     df['Pyramid Segment-lower'] = df['Pyramid Segment'].str.lower()
-    df['PIM Group-lower'] = df['PIM Group'].str.lower()
+    #df['PIM Group-lower'] = df['PIM Group'].str.lower()
     
     #remove lower case key columns
     df = df.merge(segments, how = 'left', left_on = ['Pyramid Segment-lower'], right_on = ['Pyramid Segment-lower']).drop(
@@ -347,18 +438,19 @@ def transform_usfoods(df, file_name):
     #add lower case for merging
     #products['PIM Group-lower'] = products['PIM Group'].str.lower()
     
-    products = products.groupby(['Manufacturer Item Number','SKU ID','Consolidated Category', 'L1 Product Hierarchy','L2 Product Hierarchy'], 
-                                dropna = False).size().reset_index().drop(columns={0}).astype({'Manufacturer Item Number':'int64'}).astype({'Manufacturer Item Number':'str'})
+    products = products.groupby(['McCain SKU ID','Consolidated Category', 'L1 Product Hierarchy','L2 Product Hierarchy'], 
+                                dropna = False).size().reset_index().drop(columns={0})
     
-    df = df.merge(products, how = 'left', on = 'Manufacturer Item Number')
+    df = df.merge(products, how = 'left', on = 'McCain SKU ID')
     
     #Time segmentation
-    df = df.merge(TIME[['Calendar Week Year']], how = 'left', 
-                  left_on = ['Calendar Week'], right_on = ['Calendar Week Year'])
+    df = df.merge(TIME[['Week Starting (Sun)', 'Calendar Week Year']], how = 'left', 
+                  left_on = ['Week Beginning Date'], right_on = ['Week Starting (Sun)']).drop(columns = {'Week Beginning Date'})
     
-    df = df.merge(regions[['Market', 'State']], how = 'left', on = 'Market')
+    #df = df.merge(regions[['Market', 'State']], how = 'left', on = 'Market')
                   
     df = df.merge(us_states(), how = 'left', on = 'State')
+
     df.loc[df['State Name'].isna(), ['State', 'State Name']] = 'None'
     
     df['City'] = 'NA'
@@ -371,7 +463,7 @@ def transform_usfoods(df, file_name):
     print(f'Shape after adding dictionary: {df.shape}', flush = True)
     
     is_missing_l1(df, ['Pyramid Segment'], 'usfoods')
-    is_missing_sku(df, ['Merch Category','PIM Group','Manufacturer Item Number','Product Description','Pack Size'], 'usfoods')
+    is_missing_sku(df, ['ASYS ID','Manufacturer GTIN','McCain SKU ID'], 'usfoods')
 
     return df
 
@@ -409,13 +501,13 @@ def transform_sysco_ca(df, file_name):
     
     #dict_df.to_csv('sysco_test.csv', index=False)
 
-    df['sector'] = df['sector'].str.strip().replace('', np.nan)
-    df['segment'] = df['segment'].str.strip().replace('', np.nan)
-    df['subsegment'] = df['subsegment'].str.strip().replace('', np.nan)
+    df['sector'] = df['sector'].str.strip().replace(r'^\s*$', np.nan, regex=True)
+    df['segment'] = df['segment'].str.strip().replace(r'^\s*$', np.nan, regex=True)
+    df['subsegment'] = df['subsegment'].str.strip().replace(r'^\s*$', np.nan, regex=True)
 
-    dict_df['sector'] = dict_df['sector'].str.strip().replace('', np.nan)
-    dict_df['segment'] = dict_df['segment'].str.strip().replace('', np.nan)
-    dict_df['subsegment'] = dict_df['subsegment'].str.strip().replace('', np.nan)
+    dict_df['sector'] = dict_df['sector'].str.strip().replace(r'^\s*$', np.nan, regex=True)
+    dict_df['segment'] = dict_df['segment'].str.strip().replace(r'^\s*$', np.nan, regex=True)
+    dict_df['subsegment'] = dict_df['subsegment'].str.strip().replace(r'^\s*$', np.nan, regex=True)
 
     #remove / character
     df['sector'] = df['sector'].str.replace('/', '')

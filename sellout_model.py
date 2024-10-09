@@ -3,10 +3,10 @@ import datetime
 from datetime import datetime as dt
 import numpy as np
 from regex import D
-import teradatasql
+#import teradatasql
 
 def set_dictionary():
-    return r'C:\Users\NEWATTER\OneDrive - McCain Foods Limited\Distributor Sell-Out Dictionaries\\'
+    return r'C:\Users\newatter\OneDrive - McCain Foods Limited\Distributor Sell-Out\Data Dictionaries\\'
 
 def set_time(DICTIONARY):
     return pd.read_excel(DICTIONARY + 'Time Definitions.xlsx')
