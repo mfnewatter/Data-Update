@@ -151,7 +151,7 @@ def import_sysco_ca():
 
     server = 'azure-synapse-workspace-01-prod.sql.azuresynapse.net'
     database = 'GDASQLPool01PROD'
-    driver= '{ODBC Driver 17 for SQL Server}'
+    driver= '{ODBC Driver 18 for SQL Server}'
     active = 'ActiveDirectoryIntegrated'
 
     cnxn = pyodbc.connect('DRIVER='+driver+';SERVER=tcp:'+server+';PORT=1433;DATABASE='+database+';Authentication='+active)
